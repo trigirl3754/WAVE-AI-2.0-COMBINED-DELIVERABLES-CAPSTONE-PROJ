@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    /* The dashboard components were authored as standalone artifacts with
+       loosely typed props. Strict mode is off so they compile unchanged;
+       the API client and store (client/src/lib) are fully typed. */
+    "strict": false,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["client/src", "vite.config.ts"]
+}

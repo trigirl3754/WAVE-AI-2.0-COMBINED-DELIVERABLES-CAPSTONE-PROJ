@@ -1,0 +1,556 @@
+/* ==========================================================================
+   WAVE dashboard shell.
+
+   The six workspaces each carry their own visual language (they were authored
+   as standalone artifacts). The shell is deliberately quieter than they are:
+   a monospace instrument panel on the left, sentence-case content on the
+   right. Chrome is mono and tracked out; content is sans.
+   ========================================================================== */
+
+:root {
+  --bg: #05070d;
+  --rail: #0a0e18;
+  --surface: #0d1320;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  --teal: #00e5c8;
+  --violet: #a78bfa;
+  --blue: #38bdf8;
+  --orange: #f97316;
+  --gold: #facc15;
+  --red: #f43f5e;
+  --green: #34d399;
+
+  --text: #e2e8f0;
+  --light: #94a3b8;
+  --muted: #64748b;
+
+  --rail-w: 240px;
+  --rail-w-collapsed: 66px;
+
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo,
+    Consolas, "Liberation Mono", monospace;
+  --sans: "DM Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Visible keyboard focus everywhere, without ringing on mouse clicks. */
+:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+
+.shell {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.shell__content {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg);
+  scrollbar-gutter: stable;
+}
+
+/* Each workspace fills the scroll area. */
+.shell__pane {
+  min-height: 100%;
+}
+
+/* ── Nav rail ───────────────────────────────────────────────────────────── */
+
+.rail {
+  width: var(--rail-w);
+  flex-shrink: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--rail);
+  border-right: 1px solid var(--border);
+  font-family: var(--mono);
+  transition: width 0.18s ease;
+}
+
+.rail--collapsed {
+  width: var(--rail-w-collapsed);
+}
+
+.rail__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rail__mark {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--teal), var(--violet));
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #04070e;
+  letter-spacing: -0.5px;
+}
+
+.rail__wordmark {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: var(--text);
+}
+
+.rail__tagline {
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.rail__section {
+  padding: 16px 16px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: var(--muted);
+}
+
+.rail__nav {
+  /* The "wire": a hairline running the length of the nav, lit by the active
+     workspace's accent. This is the one bit of decoration that carries
+     information — position in the stack, and which one is live. */
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 10px 10px;
+}
+
+.rail__wire {
+  position: absolute;
+  left: 17px;
+  top: 6px;
+  bottom: 10px;
+  width: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+
+.rail__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 10px;
+  margin-bottom: 2px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+
+.rail__item:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.rail__item[aria-current="page"] {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border);
+}
+
+/* The node on the wire. Filled when active. */
+.rail__node {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--rail);
+  border: 1px solid var(--border-strong);
+  font-size: 7px;
+  color: transparent;
+  transition: border-color 0.14s ease;
+}
+
+.rail__item[aria-current="page"] .rail__node {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.rail__item[aria-current="page"] .rail__node::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.rail__label {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail__badge {
+  flex-shrink: 0;
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 20px;
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+}
+
+.rail__key {
+  flex-shrink: 0;
+  font-size: 9px;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.14s ease;
+}
+
+.rail__item:hover .rail__key {
+  opacity: 1;
+}
+
+.rail__foot {
+  border-top: 1px solid var(--border);
+  padding: 12px 16px 14px;
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.rail__stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rail__stat b {
+  color: var(--light);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rail__status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.rail__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--green);
+  box-shadow: 0 0 7px var(--green);
+}
+
+.rail__dot--down {
+  background: var(--red);
+  box-shadow: 0 0 7px var(--red);
+}
+
+/* A pulse travels the wire whenever the frontend calls the API, so network
+   activity is visible without a spinner. */
+.rail__dot--busy {
+  animation: rail-throb 0.5s ease;
+}
+
+@keyframes rail-throb {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.85); }
+  100% { transform: scale(1); }
+}
+
+.rail__collapse {
+  width: 100%;
+  padding: 7px;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+}
+
+.rail__collapse:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+/* ── Offline banner ─────────────────────────────────────────────────────── */
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 20px;
+  background: color-mix(in srgb, var(--red) 12%, var(--surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--red) 35%, transparent);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+}
+
+.banner button {
+  margin-left: auto;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--red) 45%, transparent);
+  background: transparent;
+  color: var(--red);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+}
+
+/* ── Command palette ───────────────────────────────────────────────────── */
+
+.palette__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(2, 4, 9, 0.72);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh 20px 20px;
+}
+
+.palette {
+  width: 100%;
+  max-width: 520px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.palette input {
+  width: 100%;
+  padding: 15px 18px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+}
+
+.palette input::placeholder {
+  color: var(--muted);
+}
+
+.palette__list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.palette__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--light);
+  cursor: pointer;
+  text-align: left;
+}
+
+.palette__row[data-active="true"] {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.palette__row small {
+  display: block;
+  color: var(--muted);
+  font-size: 10.5px;
+  margin-top: 2px;
+}
+
+.palette__empty {
+  padding: 26px 18px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.palette__hint {
+  padding: 9px 16px;
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  display: flex;
+  gap: 14px;
+}
+
+/* ── Fallbacks ─────────────────────────────────────────────────────────── */
+
+.fallback {
+  padding: 60px 32px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.wave-pulse-dot {
+  display: inline-block;
+  animation: wave-bounce 1s ease-in-out infinite;
+}
+
+@keyframes wave-bounce {
+  0%, 100% { opacity: 0.25; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-4px); }
+}
+
+/* ── Scrollbars ────────────────────────────────────────────────────────── */
+
+.shell__content::-webkit-scrollbar,
+.rail__nav::-webkit-scrollbar,
+.palette__list::-webkit-scrollbar {
+  width: 9px;
+}
+
+.shell__content::-webkit-scrollbar-thumb,
+.rail__nav::-webkit-scrollbar-thumb,
+.palette__list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+}
+
+.shell__content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* ── Responsive: the rail becomes a top strip on narrow screens ─────────── */
+
+@media (max-width: 900px) {
+  .shell {
+    flex-direction: column;
+  }
+
+  .rail,
+  .rail--collapsed {
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding-right: 10px;
+  }
+
+  .rail__brand {
+    border-bottom: none;
+    border-right: 1px solid var(--border);
+    padding: 12px 14px;
+    flex-shrink: 0;
+  }
+
+  .rail__section,
+  .rail__foot,
+  .rail__wire,
+  .rail__collapse,
+  .rail__key {
+    display: none;
+  }
+
+  .rail__nav {
+    display: flex;
+    gap: 4px;
+    padding: 8px 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .rail__item {
+    width: auto;
+    margin-bottom: 0;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001s !important;
+  }
+}
