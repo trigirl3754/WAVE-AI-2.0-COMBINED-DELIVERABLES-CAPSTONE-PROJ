@@ -1,5 +1,7 @@
 # WAVE AI — Compliance Dashboard
 
+Published link: https://claude.ai/artifact/E84xmV7E9YRiC1BN51aDej
+
 Six workspaces behind one navigation rail, backed by a real API. Each of the
 original artifact files became a tab.
 
